@@ -38,6 +38,9 @@ public class Performance extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true, updatable = false)
+    private String kopisId;
+
     @Column(nullable = false)
     private String name;
 

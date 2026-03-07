@@ -4,7 +4,11 @@ import com.pickgo.domain.performance.area.area.entity.AreaGrade;
 import com.pickgo.domain.performance.area.area.entity.AreaName;
 import com.pickgo.domain.performance.area.area.entity.PerformanceArea;
 import com.pickgo.domain.performance.kopis.dto.KopisPerformanceDetailResponse;
-import com.pickgo.domain.performance.performance.entity.*;
+import com.pickgo.domain.performance.performance.entity.Performance;
+import com.pickgo.domain.performance.performance.entity.PerformanceIntro;
+import com.pickgo.domain.performance.performance.entity.PerformanceSession;
+import com.pickgo.domain.performance.performance.entity.PerformanceState;
+import com.pickgo.domain.performance.performance.entity.PerformanceType;
 import com.pickgo.domain.performance.venue.entity.Venue;
 
 import java.time.DayOfWeek;
@@ -12,14 +16,19 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class PerformanceMapper {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
     // 공연 생성
-    public static Performance toPerformance(KopisPerformanceDetailResponse response, Venue venue) {
+    public static Performance toPerformance(String kopisId, KopisPerformanceDetailResponse response, Venue venue) {
         Performance performance = Performance.builder()
+                .kopisId(kopisId)
                 .name(response.getName())
                 .startDate(LocalDate.parse(response.getStartDate(), DATE_TIME_FORMATTER))
                 .endDate(LocalDate.parse(response.getEndDate(), DATE_TIME_FORMATTER))
@@ -46,7 +55,6 @@ public class PerformanceMapper {
         return performance;
     }
 
-    // 공연 상태 enum 변환
     private static PerformanceState convertState(String state) {
         return switch (state) {
             case "공연중" -> PerformanceState.ONGOING;
@@ -55,7 +63,6 @@ public class PerformanceMapper {
         };
     }
 
-    // 공연 타입 enum 변환
     private static PerformanceType convertType(String type) {
         return switch (type) {
             case "연극" -> PerformanceType.PLAY;
@@ -68,7 +75,6 @@ public class PerformanceMapper {
         };
     }
 
-    // 소개 이미지 생성
     private static List<PerformanceIntro> toPerformanceIntros(List<String> introDtos) {
         return introDtos.stream()
                 .map(introDto -> PerformanceIntro.builder()
@@ -77,7 +83,6 @@ public class PerformanceMapper {
                 .toList();
     }
 
-    // 회차 생성
     private static List<PerformanceSession> toPerformanceSession(String schedule, Performance performance) {
         Map<DayOfWeek, List<LocalTime>> scheduleMap = parseSchedule(schedule);
 
@@ -106,41 +111,42 @@ public class PerformanceMapper {
         return sessions;
     }
 
-    // 스케줄을 파싱하여 요일별 공연 시간을 얻는다.
     private static Map<DayOfWeek, List<LocalTime>> parseSchedule(String schedule) {
+        if (schedule == null || schedule.isBlank()) {
+            throw new IllegalArgumentException("Schedule is empty");
+        }
+
         Map<DayOfWeek, List<LocalTime>> map = new HashMap<>();
-
-        schedule = schedule.replace(" ", "").replace("\n", "");
-
-        String[] parts = schedule.split("\\),");
+        String normalized = schedule.replace(" ", "").replace("\n", "");
+        String[] parts = normalized.split("\\),");
 
         for (String part : parts) {
-            if (!part.endsWith(")")) {
-                part += ")";
+            String normalizedPart = part.endsWith(")") ? part : part + ")";
+            String[] split = normalizedPart.split("\\(");
+            if (split.length != 2) {
+                throw new IllegalArgumentException("Invalid schedule format: " + schedule);
             }
 
-            // 요일과 시간으로 분리
-            String[] split = part.split("\\(");
             String daysPart = split[0];
             String timesPart = split[1].replace(")", "");
 
-            // 시간 문자열을 LocalTime 리스트로 변환
             List<LocalTime> times = Arrays.stream(timesPart.split(","))
                     .map(PerformanceMapper::parseTime)
                     .toList();
 
-            // 요일 문자열을 DayOfWeek 리스트로 변환: 월요일 ~ 수요일 -> [월, 화, 수]
             List<DayOfWeek> days = parseDays(daysPart);
-
             for (DayOfWeek day : days) {
                 map.put(day, times);
             }
         }
 
+        if (map.isEmpty()) {
+            throw new IllegalArgumentException("No sessions parsed from schedule: " + schedule);
+        }
+
         return map;
     }
 
-    // 시간 문자열 -> LocalTime 변환
     private static LocalTime parseTime(String timeString) {
         String[] parts = timeString.split(":");
         int hour = Integer.parseInt(parts[0]);
@@ -148,7 +154,6 @@ public class PerformanceMapper {
         return LocalTime.of(hour, minute);
     }
 
-    // 요일 문자열 -> DayOfWeek 리스트 변환
     private static List<DayOfWeek> parseDays(String daysPart) {
         List<DayOfWeek> days = new ArrayList<>();
 
@@ -165,14 +170,13 @@ public class PerformanceMapper {
         } else {
             DayOfWeek dayOfWeek = koreanDayOfWeek(daysPart);
             if (dayOfWeek != null) {
-                days.add(koreanDayOfWeek(daysPart));
+                days.add(dayOfWeek);
             }
         }
 
         return days;
     }
 
-    // 요일 -> DayOfWeek 변환
     private static DayOfWeek koreanDayOfWeek(String korean) {
         return switch (korean) {
             case "월요일" -> DayOfWeek.MONDAY;
@@ -194,7 +198,7 @@ public class PerformanceMapper {
         int colCount;
         int price;
 
-        public AreaConfig(AreaName areaName, AreaGrade areaGrade, int rowCount, int colCount, int price) {
+        AreaConfig(AreaName areaName, AreaGrade areaGrade, int rowCount, int colCount, int price) {
             this.areaName = areaName;
             this.areaGrade = areaGrade;
             this.rowCount = rowCount;
@@ -203,7 +207,6 @@ public class PerformanceMapper {
         }
     }
 
-    // 구역 생성
     private static List<PerformanceArea> createPerformanceAreas(Performance performance) {
         List<AreaConfig> areaConfigs = List.of(
                 new AreaConfig(AreaName.VIP, AreaGrade.PREMIUM, 5, 20, 150000),

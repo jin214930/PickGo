@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import java.time.LocalDate;
 
 public interface PerformanceRepository extends JpaRepository<Performance, Long> {
+    boolean existsByKopisId(String kopisId);
+
     boolean existsByNameAndPoster(String name, String poster);
 
     @Modifying

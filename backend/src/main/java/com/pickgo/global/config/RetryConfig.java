@@ -1,9 +1,9 @@
 package com.pickgo.global.config;
 
 import org.springframework.context.annotation.Configuration;
-import org.springframework.retry.annotation.Retryable;
+import org.springframework.retry.annotation.EnableRetry;
 
 @Configuration
-@Retryable
+@EnableRetry
 public class RetryConfig {
 }
