@@ -11,7 +11,10 @@ import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.support.NoOpCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
@@ -53,7 +56,6 @@ public class RedisConfig {
         var serverConfig = config.useSingleServer()
                 .setAddress("redis://" + host + ":" + port);
 
-        // prod에서만 비번 적용
         if (!"test".equals(activeProfile) && password != null && !password.isBlank()) {
             serverConfig.setPassword(password);
         }
@@ -61,12 +63,12 @@ public class RedisConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "app.cache", name = "enabled", havingValue = "true", matchIfMissing = true)
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        // 기본 캐시 설정 (목록 조회 등 단순 구조)
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(10))
                 .serializeValuesWith(
@@ -75,7 +77,6 @@ public class RedisConfig {
                         )
                 );
 
-        // 단건 조회(post) 전용 설정 (복잡한 구조)
         Jackson2JsonRedisSerializer<PostDetailResponse> postSerializer =
                 new Jackson2JsonRedisSerializer<>(objectMapper, PostDetailResponse.class);
 
@@ -85,7 +86,6 @@ public class RedisConfig {
                         RedisSerializationContext.SerializationPair.fromSerializer(postSerializer)
                 );
 
-        // PageResponse<PostSimpleResponse> 전용 캐시
         JavaType pageType = objectMapper.getTypeFactory()
                 .constructParametricType(PageResponse.class, PostSimpleResponse.class);
         Jackson2JsonRedisSerializer<?> postListSerializer =
@@ -105,5 +105,11 @@ public class RedisConfig {
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigs)
                 .build();
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "app.cache", name = "enabled", havingValue = "false")
+    public CacheManager noOpCacheManager() {
+        return new NoOpCacheManager();
     }
 }
