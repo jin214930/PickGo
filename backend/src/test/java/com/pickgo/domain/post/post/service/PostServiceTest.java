@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -47,6 +48,7 @@ public class PostServiceTest {
 
     private Post createPost() {
         Performance performance = Performance.builder()
+                .kopisId("TEST-PERF-" + UUID.randomUUID())
                 .startDate(LocalDate.now())
                 .endDate(LocalDate.now().plusDays(10))
                 .poster("poster.jpg")

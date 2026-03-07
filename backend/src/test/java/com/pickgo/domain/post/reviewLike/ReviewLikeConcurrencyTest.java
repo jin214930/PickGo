@@ -87,6 +87,7 @@ public class ReviewLikeConcurrencyTest {
 
         // 3. Performance 생성
         Performance performance = Performance.builder()
+                .kopisId("TEST-PERF-" + UUID.randomUUID())
                 .name("테스트 공연")
                 .startDate(LocalDate.now())
                 .endDate(LocalDate.now().plusDays(7))

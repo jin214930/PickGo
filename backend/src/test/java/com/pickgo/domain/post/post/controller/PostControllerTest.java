@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -53,6 +54,7 @@ class PostControllerTest {
     @BeforeEach
     void setUp() {
         performance = Performance.builder()
+                .kopisId("TEST-PERF-" + UUID.randomUUID())
                 .name("공연명")
                 .startDate(LocalDate.now().plusDays(1))
                 .endDate(LocalDate.now().plusDays(10))

@@ -70,6 +70,7 @@ class AdminPostControllerTest {
                 Post.builder().id(1L).title("게시글1")
                         .performance(
                                 Performance.builder()
+                                        .kopisId("MOCK-PERF-1")
                                         .poster("poster1.jpg")
                                         .endDate(LocalDate.now())
                                         .venue(Venue.builder().name("공연장1").build())
@@ -78,6 +79,7 @@ class AdminPostControllerTest {
                 Post.builder().id(2L).title("게시글2")
                         .performance(
                                 Performance.builder()
+                                        .kopisId("MOCK-PERF-2")
                                         .poster("poster2.jpg")
                                         .endDate(LocalDate.now())
                                         .venue(Venue.builder().name("공연장2").build())
@@ -129,6 +131,7 @@ class AdminPostControllerTest {
                 .build();
 
         Performance performance = Performance.builder()
+                .kopisId("MOCK-PERF-DETAIL")
                 .id(1L)
                 .name("뮤지컬 헤드윅")
                 .poster("https://example.com/poster.jpg")
