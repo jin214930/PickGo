@@ -72,16 +72,16 @@ public class PostServiceTest {
     @DisplayName("게시글 목록 조회 테스트")
     void getPosts() {
         // given
-        String keyword = "";
+        String keyword = " 테스트 공연 ";
         int page = 1, size = 10;
         PerformanceType type = null;
-        PostSortType sort = PostSortType.ID_DESC;
+        PostSortType sort = PostSortType.VIEW_DESC;
         Pageable pageable = PageRequest.of(0, size, sort.getSort());
 
         Post post = createPost();
         Page<Post> postPage = new PageImpl<>(List.of(post), pageable, 1);
 
-        when(postRepository.searchPostByTitle(pageable, keyword)).thenReturn(postPage);
+        when(postRepository.searchPosts(pageable, "테스트공연", type, sort)).thenReturn(postPage);
 
         // when
         PageResponse<PostSimpleResponse> result = postService.getPosts(page, size, keyword, type, sort);
@@ -89,6 +89,26 @@ public class PostServiceTest {
         // then
         assertThat(result.items()).hasSize(1);
         assertThat(result.items().get(0).title()).isEqualTo(post.getTitle());
+        verify(postRepository).searchPosts(pageable, "테스트공연", type, sort);
+    }
+
+    @Test
+    @DisplayName("정렬 조건이 없으면 최신순으로 조회한다")
+    void getPosts_defaultsToLatestSortWhenSortIsNull() {
+        // given
+        int page = 1, size = 10;
+        Pageable pageable = PageRequest.of(0, size, PostSortType.ID_DESC.getSort());
+        Page<Post> postPage = new PageImpl<>(List.of(createPost()), pageable, 1);
+
+        when(postRepository.searchPosts(pageable, "", null, PostSortType.ID_DESC))
+                .thenReturn(postPage);
+
+        // when
+        PageResponse<PostSimpleResponse> result = postService.getPosts(page, size, null, null, null);
+
+        // then
+        assertThat(result.items()).hasSize(1);
+        verify(postRepository).searchPosts(pageable, "", null, PostSortType.ID_DESC);
     }
 
     @Test
@@ -97,14 +117,14 @@ public class PostServiceTest {
         // given
         int size = 5;
         List<Post> mockPosts = List.of(createPost(), createPost());
-        when(postRepository.findTopPostsByViews(size)).thenReturn(mockPosts);
+        when(postRepository.findPopularPosts(size, null)).thenReturn(mockPosts);
 
         // when
         List<PostSimpleResponse> result = postService.getPopularPosts(size, null);
 
         // then
         assertThat(result).hasSize(2);
-        verify(postRepository).findTopPostsByViews(size);
+        verify(postRepository).findPopularPosts(size, null);
     }
 
     @Test
@@ -112,7 +132,7 @@ public class PostServiceTest {
     void getOpeningSoonPosts() {
         // given
         List<Post> scheduledPosts = List.of(createPost());
-        when(postRepository.findTopScheduledPosts()).thenReturn(scheduledPosts);
+        when(postRepository.findOpeningSoonPosts()).thenReturn(scheduledPosts);
 
         // when
         List<PostSimpleResponse> result = postService.getOpeningSoonPosts();
