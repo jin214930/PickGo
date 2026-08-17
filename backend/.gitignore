@@ -41,3 +41,4 @@ out/
 .env
 mysql_logs/
 src/main/java/resources/application-secret.yml
+src/main/generated/

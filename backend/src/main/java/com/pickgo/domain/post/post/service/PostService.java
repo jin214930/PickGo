@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -84,12 +85,11 @@ public class PostService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "posts", key = "'page:' + #page + ':size:' + #size + ':keyword:' + #keyword + ':type:' + #type + ':sort:' + #sort")
     public PageResponse<PostSimpleResponse> getPosts(int page, int size, String keyword, PerformanceType type, PostSortType sort) {
-        Pageable pageable = PageRequest.of(page - 1, size, sort.getSort());
-        String formattedKeyword = keyword.toLowerCase().replaceAll(" ", "");
+        PostSortType effectiveSort = sort == null ? PostSortType.ID_DESC : sort;
+        Pageable pageable = PageRequest.of(page - 1, size, effectiveSort.getSort());
+        String formattedKeyword = normalizeKeyword(keyword);
 
-        Page<Post> posts = (type == null)
-                ? postRepository.searchPostByTitle(pageable, formattedKeyword)
-                : postRepository.searchPostByTitleAndType(pageable, formattedKeyword, type);
+        Page<Post> posts = postRepository.searchPosts(pageable, formattedKeyword, type, effectiveSort);
 
         return PageResponse.from(posts, PostSimpleResponse::from);
     }
@@ -97,9 +97,7 @@ public class PostService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "popularPosts", key = "'size:' + #size + ':type:' + #type")
     public List<PostSimpleResponse> getPopularPosts(int size, PerformanceType type) {
-        List<Post> posts = (type == null)
-                ? postRepository.findTopPostsByViews(size)
-                : postRepository.findTopPostsByViewsAndType(size, type);
+        List<Post> posts = postRepository.findPopularPosts(size, type);
 
         return posts.stream().map(PostSimpleResponse::from).toList();
     }
@@ -107,7 +105,7 @@ public class PostService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "openingSoonPosts")
     public List<PostSimpleResponse> getOpeningSoonPosts() {
-        List<Post> posts = postRepository.findTopScheduledPosts();
+        List<Post> posts = postRepository.findOpeningSoonPosts();
 
         return posts.stream().map(PostSimpleResponse::from).toList();
     }
@@ -126,7 +124,7 @@ public class PostService {
         String viewCountKey = "view_count:" + id;
 
         // 조회 이력이 있다면 무시
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(viewedKey))) {
+        if (redisTemplate.hasKey(viewedKey)) {
             return;
         }
 
@@ -135,5 +133,14 @@ public class PostService {
 
         // 조회수 증가
         redisTemplate.opsForValue().increment(viewCountKey);
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return "";
+        }
+
+        return keyword.toLowerCase(Locale.ROOT)
+                .replace(" ", "");
     }
 }
