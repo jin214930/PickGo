@@ -35,6 +35,7 @@ public abstract class RedisStreamConsumer {
     protected final StringRedisTemplate redisTemplate;
     private final Environment environment;
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicBoolean consumerStarted = new AtomicBoolean(false);
     private CompletableFuture<Void> consumerTask;
 
     /**
@@ -55,6 +56,7 @@ public abstract class RedisStreamConsumer {
             return;
         }
 
+        consumerStarted.set(true);
         initConsumerGroup();
         consumerTask = CompletableFuture.runAsync(this::consumeLoop, getExecutor());
     }
@@ -91,26 +93,43 @@ public abstract class RedisStreamConsumer {
         try {
             List<MapRecord<String, Object, Object>> messages = getMessages(consumerGroup, consumerName, streamKey);
 
-            if (messages == null || messages.isEmpty()) {
+            if (messages == null || messages.isEmpty() || isConsumerStopped()) {
                 return;
             }
 
             // 메시지 처리 비동기로 수행
-            messages.forEach(message -> CompletableFuture.runAsync(() -> {
-                try {
-                    // 메시지 처리
-                    handleMessage(message);
-                } catch (IOException e) {
-                    // 연결이 끊겨서 메시지를 못보낸 경우
-                    log.warn("Error handling message: {}", e.getMessage());
+            for (MapRecord<String, Object, Object> message : messages) {
+                if (isConsumerStopped()) {
+                    return;
                 }
-                // 연결이 끊겨서 보내지 못한 메시지는 다시 보내지 못하므로 ACK 처리
-                redisTemplate.opsForStream().acknowledge(streamKey, consumerGroup, message.getId());
-            }, getExecutor()));
+
+                CompletableFuture.runAsync(() -> {
+                    if (isConsumerStopped()) {
+                        return;
+                    }
+
+                    try {
+                        // 메시지 처리
+                        handleMessage(message);
+                    } catch (IOException e) {
+                        // 연결이 끊겨서 메시지를 못보낸 경우
+                        log.warn("Error handling message: {}", e.getMessage());
+                    }
+
+                    // 연결이 끊겨서 보내지 못한 메시지는 다시 보내지 못하므로 ACK 처리
+                    if (!isConsumerStopped()) {
+                        redisTemplate.opsForStream().acknowledge(streamKey, consumerGroup, message.getId());
+                    }
+                }, getExecutor());
+            }
 
         } catch (Exception e) {
             log.error("Error while consuming Redis Stream: {}", e.getMessage(), e);
         }
+    }
+
+    private boolean isConsumerStopped() {
+        return consumerStarted.get() && !running.get();
     }
 
     /**
