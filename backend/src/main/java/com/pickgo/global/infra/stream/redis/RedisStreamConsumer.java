@@ -6,7 +6,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.redisson.RedissonShutdownException;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
@@ -16,6 +18,7 @@ import org.springframework.data.redis.connection.stream.StreamReadOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,8 +30,13 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class RedisStreamConsumer {
 
+    private static final Duration RETRY_BACKOFF = Duration.ofSeconds(1);
+
     protected final StringRedisTemplate redisTemplate;
     private final Environment environment;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicBoolean consumerStarted = new AtomicBoolean(false);
+    private CompletableFuture<Void> consumerTask;
 
     /**
      * 초기화 시 Consumer Group 생성 후, 메시지 소비 루프 실행
@@ -40,8 +48,29 @@ public abstract class RedisStreamConsumer {
             return;
         }
 
+        startConsumer();
+    }
+
+    void startConsumer() {
+        if (!running.compareAndSet(false, true)) {
+            return;
+        }
+
+        consumerStarted.set(true);
         initConsumerGroup();
-        CompletableFuture.runAsync(this::consumeLoop, getExecutor());
+        consumerTask = CompletableFuture.runAsync(this::consumeLoop, getExecutor());
+    }
+
+    /**
+     * 애플리케이션 종료 시 Redis Stream 소비 루프를 중단
+     */
+    @PreDestroy
+    public void shutdown() {
+        running.set(false);
+
+        if (consumerTask != null) {
+            consumerTask.cancel(true);
+        }
     }
 
     /**
@@ -52,7 +81,7 @@ public abstract class RedisStreamConsumer {
         String consumerName = getConsumerName();
         String streamKey = getStreamKey();
 
-        while (true) {
+        while (running.get() && !Thread.currentThread().isInterrupted()) {
             consume(consumerGroup, consumerName, streamKey);
         }
     }
@@ -64,26 +93,43 @@ public abstract class RedisStreamConsumer {
         try {
             List<MapRecord<String, Object, Object>> messages = getMessages(consumerGroup, consumerName, streamKey);
 
-            if (messages == null || messages.isEmpty()) {
+            if (messages == null || messages.isEmpty() || isConsumerStopped()) {
                 return;
             }
 
             // 메시지 처리 비동기로 수행
-            messages.forEach(message -> CompletableFuture.runAsync(() -> {
-                try {
-                    // 메시지 처리
-                    handleMessage(message);
-                } catch (IOException e) {
-                    // 연결이 끊겨서 메시지를 못보낸 경우
-                    log.warn("Error handling message: {}", e.getMessage());
+            for (MapRecord<String, Object, Object> message : messages) {
+                if (isConsumerStopped()) {
+                    return;
                 }
-                // 연결이 끊겨서 보내지 못한 메시지는 다시 보내지 못하므로 ACK 처리
-                redisTemplate.opsForStream().acknowledge(streamKey, consumerGroup, message.getId());
-            }, getExecutor()));
+
+                CompletableFuture.runAsync(() -> {
+                    if (isConsumerStopped()) {
+                        return;
+                    }
+
+                    try {
+                        // 메시지 처리
+                        handleMessage(message);
+                    } catch (IOException e) {
+                        // 연결이 끊겨서 메시지를 못보낸 경우
+                        log.warn("Error handling message: {}", e.getMessage());
+                    }
+
+                    // 연결이 끊겨서 보내지 못한 메시지는 다시 보내지 못하므로 ACK 처리
+                    if (!isConsumerStopped()) {
+                        redisTemplate.opsForStream().acknowledge(streamKey, consumerGroup, message.getId());
+                    }
+                }, getExecutor());
+            }
 
         } catch (Exception e) {
             log.error("Error while consuming Redis Stream: {}", e.getMessage(), e);
         }
+    }
+
+    private boolean isConsumerStopped() {
+        return consumerStarted.get() && !running.get();
     }
 
     /**
@@ -100,8 +146,35 @@ public abstract class RedisStreamConsumer {
                                     .count(getReadCount()),
                             StreamOffset.create(streamKey, ReadOffset.lastConsumed()));
         } catch (Exception e) {
+            if (isRedissonShutdown(e) || !running.get()) {
+                running.set(false);
+                log.debug("Redis Stream consumer stopped: {}", e.getMessage());
+                return null;
+            }
+
             log.warn("Failed to get messages from Redis Stream: {}", e.getMessage());
+            waitBeforeRetry();
             return null;
+        }
+    }
+
+    private boolean isRedissonShutdown(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof RedissonShutdownException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private void waitBeforeRetry() {
+        try {
+            Thread.sleep(RETRY_BACKOFF.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            running.set(false);
         }
     }
 
