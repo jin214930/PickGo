@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
@@ -24,6 +25,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -65,6 +67,46 @@ class PostQueryRepositoryTest {
         assertThat(result.getContent())
                 .allMatch(post -> post.getIsPublished()
                         && post.getPerformance().getType() == PerformanceType.MUSICAL);
+    }
+
+    @Test
+    @DisplayName("공연 타입 필터가 없으면 공개 게시글 기준으로 전체 개수를 계산한다")
+    void searchPosts_countsPublishedPostsWithoutTypeFilter() {
+        savePost("Published Show", true, PerformanceType.MUSICAL, PerformanceState.SCHEDULED,
+                LocalDate.of(2026, 9, 1), 10L);
+        savePost("Hidden Show", false, PerformanceType.MUSICAL, PerformanceState.SCHEDULED,
+                LocalDate.of(2026, 9, 2), 20L);
+
+        Page<Post> result = postRepository.searchPosts(
+                PageRequest.of(0, 10, PostSortType.ID_DESC.getSort()),
+                "",
+                null,
+                PostSortType.ID_DESC
+        );
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("공연장은 필수 값이다")
+    void performance_requiresVenue() {
+        String suffix = UUID.randomUUID().toString();
+        Performance performance = Performance.builder()
+                .kopisId("KOPIS-" + suffix)
+                .name("Performance")
+                .startDate(LocalDate.of(2026, 9, 1))
+                .endDate(LocalDate.of(2026, 9, 10))
+                .runtime("120 minutes")
+                .poster("poster.jpg")
+                .state(PerformanceState.SCHEDULED)
+                .minAge("All")
+                .casts("Cast")
+                .type(PerformanceType.MUSICAL)
+                .venue(null)
+                .build();
+
+        assertThatThrownBy(() -> performanceRepository.saveAndFlush(performance))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
