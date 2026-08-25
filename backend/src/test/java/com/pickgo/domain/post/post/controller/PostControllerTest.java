@@ -4,13 +4,14 @@ import com.pickgo.domain.performance.performance.entity.Performance;
 import com.pickgo.domain.performance.performance.entity.PerformanceState;
 import com.pickgo.domain.performance.performance.entity.PerformanceType;
 import com.pickgo.domain.performance.performance.repository.PerformanceRepository;
+import com.pickgo.domain.performance.venue.entity.Venue;
+import com.pickgo.domain.performance.venue.repository.VenueRepository;
 import com.pickgo.domain.post.post.dto.PostDetailResponse;
 import com.pickgo.domain.post.post.dto.PostSimpleResponse;
 import com.pickgo.domain.post.post.entity.Post;
 import com.pickgo.domain.post.post.entity.PostSortType;
 import com.pickgo.domain.post.post.repository.PostRepository;
 import com.pickgo.domain.post.post.service.PostService;
-import com.pickgo.domain.performance.venue.entity.Venue;
 import com.pickgo.global.response.PageResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,9 @@ class PostControllerTest {
     @Autowired
     private PerformanceRepository performanceRepository;
 
+    @Autowired
+    private VenueRepository venueRepository;
+
     @MockitoBean
     private PostService postService;
 
@@ -53,6 +57,13 @@ class PostControllerTest {
 
     @BeforeEach
     void setUp() {
+        Venue venue = venueRepository.saveAndFlush(
+                Venue.builder()
+                        .name("공연장명")
+                        .address("공연장 주소")
+                        .build()
+        );
+
         performance = Performance.builder()
                 .kopisId("TEST-PERF-" + UUID.randomUUID())
                 .name("공연명")
@@ -64,7 +75,7 @@ class PostControllerTest {
                 .minAge("전체 이용가")
                 .casts("")
                 .type(PerformanceType.MUSICAL)
-                .venue(Venue.builder().name("공연장명").build())
+                .venue(venue)
                 .build();
         performanceRepository.save(performance);
 

@@ -71,8 +71,8 @@ public class Performance extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private PerformanceType type;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
-    @JoinColumn(name = "venue_id")
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, optional = false)
+    @JoinColumn(name = "venue_id", nullable = false)
     private Venue venue;
 
     @Builder.Default

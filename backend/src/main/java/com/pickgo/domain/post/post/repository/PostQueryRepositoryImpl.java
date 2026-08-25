@@ -10,6 +10,7 @@ import com.pickgo.domain.post.post.entity.QPost;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -62,11 +63,15 @@ public class PostQueryRepositoryImpl implements PostQueryRepository {
                 .limit(pageable.getPageSize())
                 .fetch();
 
-        Long total = queryFactory
+        JPAQuery<Long> countQuery = queryFactory
                 .select(post.count())
-                .from(post)
-                .join(post.performance, performance)
-                .join(performance.venue, venue)
+                .from(post);
+
+        if (type != null) {
+            countQuery.join(post.performance, performance);
+        }
+
+        Long total = countQuery
                 .where(condition)
                 .fetchOne();
 
