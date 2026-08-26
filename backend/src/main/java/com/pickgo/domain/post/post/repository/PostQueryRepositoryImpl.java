@@ -9,7 +9,9 @@ import com.pickgo.domain.post.post.entity.PostSortType;
 import com.pickgo.domain.post.post.entity.QPost;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -37,14 +39,7 @@ public class PostQueryRepositoryImpl implements PostQueryRepository {
                 .and(post.isPublished.isTrue());
 
         if (StringUtils.hasText(keyword)) {
-            condition.and(
-                    Expressions
-                            .stringTemplate(
-                                    "LOWER(REPLACE({0}, ' ', ''))",
-                                    post.title
-                            )
-                            .contains(keyword)
-            );
+            condition.and(titleContainsKeyword(keyword));
         }
 
         if (type != null) {
@@ -80,6 +75,19 @@ public class PostQueryRepositoryImpl implements PostQueryRepository {
                 pageable,
                 total == null ? 0L : total
         );
+    }
+
+    private BooleanExpression titleContainsKeyword(String keyword) {
+        String phrase = "\"" + keyword.replace("\"", " ") + "\"";
+
+        NumberExpression<Double> matchScore = Expressions.numberTemplate(
+                Double.class,
+                "function('match_against', {0}, {1})",
+                post.title,
+                phrase
+        );
+
+        return matchScore.gt(0);
     }
 
     @Override

@@ -94,6 +94,16 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, effectiveSort.getSort());
         String formattedKeyword = normalizeKeyword(keyword);
 
+        if (formattedKeyword.codePointCount(0, formattedKeyword.length()) == 1) {
+            return PageResponse.<PostSimpleResponse>builder()
+                    .items(List.of())
+                    .page(page)
+                    .size(size)
+                    .totalPages(0)
+                    .totalElements(0)
+                    .build();
+        }
+
         Page<Post> posts = postRepository.searchPosts(pageable, formattedKeyword, type, effectiveSort);
 
         return PageResponse.from(posts, PostSimpleResponse::from);
@@ -146,6 +156,7 @@ public class PostService {
         }
 
         return keyword.toLowerCase(Locale.ROOT)
-                .replace(" ", "");
+                .trim()
+                .replaceAll("\\s+", " ");
     }
 }
