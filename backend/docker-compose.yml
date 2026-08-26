@@ -14,7 +14,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
       - "${DB_PORT}:3306"
-    command: --general-log=1 --general-log-file=/etc/mysql/conf.d/general.log
+    command: --general-log=1 --general-log-file=/etc/mysql/conf.d/general.log --ngram_token_size=2
     volumes:
       - db_data:/var/lib/mysql
       - ./mysql_logs:/etc/mysql/conf.d
@@ -79,4 +79,3 @@ volumes:
   redis_data:
   npm_data:
   npm_letsencrypt:
-

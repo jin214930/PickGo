@@ -57,7 +57,7 @@ class PostQueryRepositoryTest {
 
         Page<Post> result = postRepository.searchPosts(
                 PageRequest.of(0, 2, PostSortType.ID_DESC.getSort()),
-                "musicalshow",
+                "",
                 PerformanceType.MUSICAL,
                 PostSortType.ID_DESC
         );
@@ -119,7 +119,7 @@ class PostQueryRepositoryTest {
 
         Page<Post> result = postRepository.searchPosts(
                 PageRequest.of(0, 10, PostSortType.VIEW_DESC.getSort()),
-                "tie",
+                "",
                 null,
                 PostSortType.VIEW_DESC
         );

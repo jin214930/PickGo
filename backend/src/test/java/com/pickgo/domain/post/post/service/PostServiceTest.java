@@ -81,7 +81,7 @@ public class PostServiceTest {
         Post post = createPost();
         Page<Post> postPage = new PageImpl<>(List.of(post), pageable, 1);
 
-        when(postRepository.searchPosts(pageable, "테스트공연", type, sort)).thenReturn(postPage);
+        when(postRepository.searchPosts(pageable, "테스트 공연", type, sort)).thenReturn(postPage);
 
         // when
         PageResponse<PostSimpleResponse> result = postService.getPosts(page, size, keyword, type, sort);
@@ -89,7 +89,7 @@ public class PostServiceTest {
         // then
         assertThat(result.items()).hasSize(1);
         assertThat(result.items().get(0).title()).isEqualTo(post.getTitle());
-        verify(postRepository).searchPosts(pageable, "테스트공연", type, sort);
+        verify(postRepository).searchPosts(pageable, "테스트 공연", type, sort);
     }
 
     @Test

@@ -45,6 +45,7 @@ public class Post extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // MySQL ngram FULLTEXT 인덱스 적용: ft_post_title
     @Column(nullable = false)
     private String title;
 

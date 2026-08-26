@@ -82,11 +82,11 @@ class PostCachePolicyTest {
     }
 
     @Test
-    @DisplayName("검색 조건이 있는 목록 조회는 기본 목록 캐시를 사용하지 않는다")
+    @DisplayName("필터 조건이 있는 목록 조회는 기본 목록 캐시를 사용하지 않는다")
     void filteredListBypassesDefaultCache() {
         savePost("Cached Show", true, PerformanceType.MUSICAL);
 
-        postService.getPosts(1, 10, "cached", null, null);
+        postService.getPosts(1, 10, null, PerformanceType.MUSICAL, null);
 
         assertThat(cache("posts").get("default")).isNull();
     }
