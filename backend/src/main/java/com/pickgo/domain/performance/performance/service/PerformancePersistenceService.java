@@ -10,6 +10,7 @@ import com.pickgo.domain.performance.venue.repository.VenueRepository;
 import com.pickgo.domain.post.post.service.PostService;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class PerformancePersistenceService {
     private final EntityManager entityManager;
 
     @Transactional
+    @CacheEvict(cacheNames = {"posts", "popularPosts", "openingSoonPosts"}, allEntries = true)
     public Performance save(
             String performanceId,
             KopisPerformanceDetailResponse performanceDetail,
