@@ -15,7 +15,7 @@ export const options = {
 };
 
 export function setup() {
-  const listResponse = http.get(`${BASE_URL}/api/posts?page=1&size=20&sort=ID_DESC`);
+  const listResponse = http.get(`${BASE_URL}/api/posts?page=1&size=10&sort=ID_DESC`);
 
   check(listResponse, {
     'detail setup list status is 200': (r) => r.status === 200,

@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const LIST_SIZE = __ENV.SIZE || '100';
+const LIST_SIZE = __ENV.SIZE || '10';
 const HOT_POST_COUNT = Number(__ENV.HOT_POST_COUNT || 1);
 const LIST_RATIO = Number(__ENV.LIST_RATIO || '0.7');
 
