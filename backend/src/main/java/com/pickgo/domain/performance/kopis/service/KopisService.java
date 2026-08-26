@@ -8,10 +8,11 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpClientErrorException.TooManyRequests;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -31,7 +32,8 @@ public class KopisService {
 
     // 공연 목록
     @Retryable(
-            retryFor = {IOException.class, HttpClientErrorException.class, RuntimeException.class},
+            retryFor = {HttpServerErrorException.class, ResourceAccessException.class, TooManyRequests.class},
+            maxAttempts = 3,
             backoff = @Backoff(delay = 1000, multiplier = 2)
     )
     public List<String> fetchPerformanceIds(int page, int size) {
@@ -61,7 +63,8 @@ public class KopisService {
 
     // 공연 상세
     @Retryable(
-            retryFor = {IOException.class, HttpClientErrorException.class, RuntimeException.class},
+            retryFor = {HttpServerErrorException.class, ResourceAccessException.class, TooManyRequests.class},
+            maxAttempts = 3,
             backoff = @Backoff(delay = 1000, multiplier = 2)
     )
     public KopisPerformanceDetailResponse fetchPerformanceDetail(String performanceId) {
@@ -81,7 +84,8 @@ public class KopisService {
 
     // 공연 시설 상세
     @Retryable(
-            retryFor = {IOException.class, HttpClientErrorException.class, RuntimeException.class},
+            retryFor = {HttpServerErrorException.class, ResourceAccessException.class, TooManyRequests.class},
+            maxAttempts = 3,
             backoff = @Backoff(delay = 1000, multiplier = 2)
     )
     public KopisVenueDetailResponse fetchVenueDetail(String venueId) {
