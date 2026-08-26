@@ -83,7 +83,12 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "posts", key = "'page:' + #page + ':size:' + #size + ':keyword:' + #keyword + ':type:' + #type + ':sort:' + #sort")
+    @Cacheable(
+            cacheNames = "posts",
+            key = "'default'",
+            condition = "#page == 1 && #size == 10 && (#keyword == null || #keyword.trim().isEmpty()) "
+                    + "&& #type == null && (#sort == null || #sort == T(com.pickgo.domain.post.post.entity.PostSortType).ID_DESC)"
+    )
     public PageResponse<PostSimpleResponse> getPosts(int page, int size, String keyword, PerformanceType type, PostSortType sort) {
         PostSortType effectiveSort = sort == null ? PostSortType.ID_DESC : sort;
         Pageable pageable = PageRequest.of(page - 1, size, effectiveSort.getSort());

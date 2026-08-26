@@ -3,7 +3,7 @@ import { check, sleep } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const PAGE = __ENV.PAGE || '1';
-const SIZE = __ENV.SIZE || '20';
+const SIZE = __ENV.SIZE || '10';
 const KEYWORD = __ENV.KEYWORD || '';
 const TYPE = __ENV.TYPE || '';
 const SORT = __ENV.SORT || 'ID_DESC';
