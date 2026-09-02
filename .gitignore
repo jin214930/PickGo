@@ -1,3 +1,4 @@
 .idea
 backend/.gradle-local/
+.gradle-local/
 docs/
